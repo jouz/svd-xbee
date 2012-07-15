@@ -242,7 +242,7 @@ XBee.prototype._AT = function(cmd, val) {
 }
 
 XBee.prototype._remoteAT = function(cmd, remote64, remote16, val) {
-  var frame = new api.ATCommand();
+  var frame = new api.RemoteATCommand();
   frame.setCommand(cmd);
   frame.commandParameter = val;
   if (typeof remote64.dec === 'undefined') {
