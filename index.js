@@ -141,9 +141,13 @@ XBee.prototype.init = function(cb) {
   self.serial.on("open", function() {
     self.readParameters.bind(self)(cb);
   });
+  self.serial.on("close", function() {
+  	console.log("serial port closed");
+  });
 
   var exit = function() { 
     self.serial.close(function(err) {
+    	console.log("closed port");
       if (err) console.log("Error closing port: "+util.inspect(err));
       process.exit();
     });
@@ -198,10 +202,22 @@ XBee.prototype.init = function(cb) {
     self.nodes[data.remote64.hex]._onDataSampleRx(data);
   }
 
+  // Added by Warren
+  self._onExplicitRx = function(data) {
+    if (!self.nodes[data.remote64.hex]) {
+      var node = self.addNode(data.remote64.dec, data.remote16.dec, self.data_parser);
+      self.emit("newNodeDiscovered", node);
+    }
+    self.nodes[data.remote64.hex]._onExplicitRx(data);
+  }
+
   self.serial.on(C.FRAME_TYPE.MODEM_STATUS,             self._onModemStatus);
   self.serial.on(C.FRAME_TYPE.NODE_IDENTIFICATION,      self._onNodeIdentification);
   self.serial.on(C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET,    self._onReceivePacket);
   self.serial.on(C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX, self._onDataSampleRx);
+  
+  // Added by Warren
+  self.serial.on(C.FRAME_TYPE.ZIGBEE_EXPLICIT_RX, self._onExplicitRx);
   
   self._queue = async.queue(function(task, callback) {
     async.series(task.packets, function(err, data) {
@@ -311,7 +327,11 @@ XBee.prototype.discover = function(cb) {
 XBee.prototype.broadcast = function(data, cb) {
   var remote64 = [0x00,0x00,0x00,0x00,0x00,0x00,0xff,0xff];
   var remote16 = [0xff,0xfe]; 
-  this.send(data, remote64, remote16, cb);
+  
+  // fix by WFB
+  addr64 = { dec: remote64, hex: Tools.bArr2HexStr(remote64) }
+  addr16 = { dec: remote16, hex: Tools.bArr2HexStr(remote16) }
+  this.send(data, addr64, addr16, cb);
 }
 
 XBee.prototype.send = function(data, remote64, remote16, _cb) {
@@ -510,6 +530,20 @@ Node.prototype._onDataSampleRx = function(packet) {
     this.refreshTimeout();
   }
 }
+
+
+// Added by Warren
+Node.prototype._onExplicitRx = function(packet) {
+  var data = new Buffer(packet.rawData).toString('ascii');
+  if (this.xbee.use_heartbeat) {
+    this.refreshTimeout();
+    if (data === this.xbee.heartbeat_packet) return;
+  }
+
+  if  (this.parser !== undefined) this.parser.parse(data);
+  else this.emit('explicit', data, packet);
+}
+
 
 Node.prototype.timeoutOccured = function() {
   this.connected = false;
