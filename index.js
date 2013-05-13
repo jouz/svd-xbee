@@ -37,6 +37,11 @@ function XBee(options) {
 
 util.inherits(XBee, EventEmitter);
 
+
+XBee.prototype._createNode = function(data) {
+  return new Node(this, data, this.data_parser)
+}
+
 XBee.prototype._makeTask = function(packet) {
   var self = this;
   return function Writer(cb) {
@@ -51,9 +56,10 @@ XBee.prototype._makeTask = function(packet) {
         cb(err);
       } else {
         //console.log(util.inspect(packet.data));
+        //console.log("written data: " + packet.cbid + " : " + results);
         if (results != packet.data.length) return cb(new Error("Not all bytes written"));
         self.serial.once(packet.cbid, function(packet) {
-          //console.log("Got Respones: "+packet.cbid);
+          console.log("Got Respones: "+packet.cbid);
           clearTimeout(timeout);
           var error = null;
           if (packet.commandStatus !== undefined) {
@@ -116,7 +122,7 @@ XBee.prototype._remoteAT = function(cmd, remote64, remote16, val, _cb) {
 
 XBee.prototype._handleNodeIdentification = function(node) {
   if (!this.nodes[node.remote64.hex]) {
-    this.nodes[node.remote64.hex] = new Node(this, node, this.data_parser);
+    this.nodes[node.remote64.hex] = this._createNode(node);
     this.emit("newNodeDiscovered", this.nodes[node.remote64.hex]);
   } else {
     // update 16-bit address, as it may change during reconnects.
@@ -141,13 +147,9 @@ XBee.prototype.init = function(cb) {
   self.serial.on("open", function() {
     self.readParameters.bind(self)(cb);
   });
-  self.serial.on("close", function() {
-  	console.log("serial port closed");
-  });
 
   var exit = function() { 
     self.serial.close(function(err) {
-    	console.log("closed port");
       if (err) console.log("Error closing port: "+util.inspect(err));
       process.exit();
     });
@@ -202,22 +204,10 @@ XBee.prototype.init = function(cb) {
     self.nodes[data.remote64.hex]._onDataSampleRx(data);
   }
 
-  // Added by Warren
-  self._onExplicitRx = function(data) {
-    if (!self.nodes[data.remote64.hex]) {
-      var node = self.addNode(data.remote64.dec, data.remote16.dec, self.data_parser);
-      self.emit("newNodeDiscovered", node);
-    }
-    self.nodes[data.remote64.hex]._onExplicitRx(data);
-  }
-
   self.serial.on(C.FRAME_TYPE.MODEM_STATUS,             self._onModemStatus);
   self.serial.on(C.FRAME_TYPE.NODE_IDENTIFICATION,      self._onNodeIdentification);
   self.serial.on(C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET,    self._onReceivePacket);
   self.serial.on(C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX, self._onDataSampleRx);
-  
-  // Added by Warren
-  self.serial.on(C.FRAME_TYPE.ZIGBEE_EXPLICIT_RX, self._onExplicitRx);
   
   self._queue = async.queue(function(task, callback) {
     async.series(task.packets, function(err, data) {
@@ -298,7 +288,7 @@ XBee.prototype.addNode = function(remote64, remote16, parser) {
   var node = self.nodes[node_data.remote64.hex];
 
   if (!node) {
-    node = self.nodes[node_data.remote64.hex] = new Node(self, node_data, self.data_parser);
+    node = self.nodes[node_data.remote64.hex] = self._createNode(node_data);
     node.connected = false;
   }
 
@@ -506,7 +496,7 @@ function Node(xbee, params, data_parser) {
     this.parser = data_parser(this);
   this.timeout = {};
   this.connected = true;
-  this.refreshTimeout();
+  this.refreshTimeout();  
 }
 
 util.inherits(Node, EventEmitter);
@@ -530,20 +520,6 @@ Node.prototype._onDataSampleRx = function(packet) {
     this.refreshTimeout();
   }
 }
-
-
-// Added by Warren
-Node.prototype._onExplicitRx = function(packet) {
-  var data = new Buffer(packet.rawData).toString('ascii');
-  if (this.xbee.use_heartbeat) {
-    this.refreshTimeout();
-    if (data === this.xbee.heartbeat_packet) return;
-  }
-
-  if  (this.parser !== undefined) this.parser.parse(data);
-  else this.emit('explicit', data, packet);
-}
-
 
 Node.prototype.timeoutOccured = function() {
   this.connected = false;
