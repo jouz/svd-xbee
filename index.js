@@ -6,8 +6,6 @@ var api = require("./lib/xbee-api.js");
 var serialport = require("serialport");
 var async = require('async');
 var os = require('os');
-var StringDecoder = require('string_decoder').StringDecoder;
-var decoder = new StringDecoder('utf-8');
 
 var C = exports.C = api.Constants;
 var Tools = exports.Tools = api.tools;
@@ -512,7 +510,13 @@ Node.prototype._onReceivePacket = function (packet) {
 
 //    the original code used Buffer.toString('ascii')
 //    but ascii is 7 bit only, so the most significant bit of each value got trahsed.
-    var data = decoder.write(packet.rawData);
+//    this is not elegant, but it works
+//    TODO: refactor data string creation from buffer
+    var data = "";
+    for(var i = 0; i < packet.rawData.length; i+= 1) {
+        data += String.fromCharCode(packet.rawData[i]);
+    }
+
     if (this.xbee.use_heartbeat) {
         this.refreshTimeout();
         if (data === this.xbee.heartbeat_packet) return;
