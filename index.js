@@ -211,13 +211,14 @@ XBee.prototype.init = function (cb) {
     self.serial.on(C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET, self._onReceivePacket);
     self.serial.on(C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX, self._onDataSampleRx);
 
+    var numParallel = 16;		// maximum number of parallel messages to be sent.
     self._queue = async.queue(function (task, callback) {
         async.series(task.packets, function (err, data) {
             if (typeof task.cb === 'function') task.cb(err, data[data.length - 1]);
             callback();
         });
-    }, 1);
-
+    }, numParallel);
+    
     return self;
 }
 
