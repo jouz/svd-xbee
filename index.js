@@ -172,18 +172,18 @@ XBee.prototype.init = function (cb) {
 
     // Modem Status
     self._onModemStatus = function (packet) {
-        if (res.status == C.MODEM_STATUS.JOINED_NETWORK) {
+        if (packet.status == C.MODEM_STATUS.JOINED_NETWORK) {
             self.emit("joinedNetwork", packet);
-        } else if (res.status == C.MODEM_STATUS.HARDWARE_RESET) {
+        } else if (packet.status == C.MODEM_STATUS.HARDWARE_RESET) {
             self.emit("hardwareReset", packet);
-        } else if (res.status == C.MODEM_STATUS.WATCHDOG_RESET) {
+        } else if (packet.status == C.MODEM_STATUS.WATCHDOG_RESET) {
             self.emit("watchdogReset", packet);
-        } else if (res.status == C.MODEM_STATUS.DISASSOCIATED) {
+        } else if (packet.status == C.MODEM_STATUS.DISASSOCIATED) {
             self.emit("disassociated", packet);
-        } else if (res.status == C.MODEM_STATUS.COORDINATOR_STARTED) {
+        } else if (packet.status == C.MODEM_STATUS.COORDINATOR_STARTED) {
             self.emit("coordinatorStarted", packet);
         } else {
-            console.warn("Modem status: ", C.MODEM_STATUS[res.status]);
+            console.warn("Modem status: ", C.MODEM_STATUS[packet.status]);
         }
     }
 
