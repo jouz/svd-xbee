@@ -265,7 +265,7 @@ XBee.prototype.readParameters = function (_done_cb) {
     // Using async to read parameters
     var res_stop = Object.keys(parameters).length;
     var results = {};
-    for (k in parameters) {
+    for (var k in parameters) {
         parameters[k]((function (key) {
             return function (err, data) {
                 if (err) return done(err, null);
