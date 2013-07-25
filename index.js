@@ -30,6 +30,9 @@ function XBee(options) {
 
     // How long (in ms) shall we wait before deciding that a transmit hasn't been successful?
     this.transmit_status_timeout = options.transmit_status_timeout || 1000;
+    
+    // maximum number of outbound messages to be waiting for a response
+    this.max_parallel_messages = options.max_parallel_messages || 1;
 
     if (options.api_mode) api.api_mode = options.api_mode;
 
@@ -61,7 +64,7 @@ XBee.prototype._makeTask = function (packet) {
                 //console.log("written data: " + packet.cbid + " : " + results);
                 if (results != packet.data.length) return cb(new Error("Not all bytes written"));
                 self.serial.once(packet.cbid, function (packet) {
-//          console.log("Got Respones: "+packet.cbid);
+                	//console.log("Got Respones: "+packet.cbid);
                     clearTimeout(timeout);
                     var error = null;
                     if (packet.commandStatus !== undefined) {
@@ -211,13 +214,12 @@ XBee.prototype.init = function (cb) {
     self.serial.on(C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET, self._onReceivePacket);
     self.serial.on(C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX, self._onDataSampleRx);
 
-    var numParallel = 16;		// maximum number of parallel messages to be sent.
     self._queue = async.queue(function (task, callback) {
         async.series(task.packets, function (err, data) {
             if (typeof task.cb === 'function') task.cb(err, data[data.length - 1]);
             callback();
         });
-    }, numParallel);
+    }, self.max_parallel_messages);
     
     return self;
 }
