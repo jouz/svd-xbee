@@ -209,11 +209,19 @@ XBee.prototype.init = function (cb) {
         self.nodes[data.remote64.hex]._onDataSampleRx(data);
     }
 
-    self.serial.on(C.FRAME_TYPE.MODEM_STATUS, self._onModemStatus);
-    self.serial.on(C.FRAME_TYPE.NODE_IDENTIFICATION, self._onNodeIdentification);
-    self.serial.on(C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET, self._onReceivePacket);
-    self.serial.on(C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX, self._onDataSampleRx);
-
+    self.serial.on(C.FRAME_TYPE.MODEM_STATUS, function(packet) { 
+    	self._onModemStatus(packet);
+    });
+    self.serial.on(C.FRAME_TYPE.NODE_IDENTIFICATION, function(packet) { 
+    	self.self._onNodeIdentification(packet);
+    });
+    self.serial.on(C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET, function(packet) { 
+    	self.self._onReceivePacket(packet);
+    });
+    self.serial.on(C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX, function(packet) { 
+    	self.self._onDataSampleRx(packet);
+    });
+    
     self._queue = async.queue(function (task, callback) {
         async.series(task.packets, function (err, data) {
             if (typeof task.cb === 'function') task.cb(err, data[data.length - 1]);
