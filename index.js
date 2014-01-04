@@ -186,6 +186,7 @@ XBee.prototype.init = function(cb) {
       self.emit("newNodeDiscovered", node); // TODO: Should this be a different event?
     }
     self.nodes[data.remote64.hex]._onReceivePacket(data);
+    self.emit("node",self.nodes[data.remote64.hex]);
   }
 
   // Data samples (from XBee's I/O)
