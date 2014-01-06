@@ -495,7 +495,7 @@ util.inherits(Node, EventEmitter);
 
 Node.prototype._onReceivePacket = function(packet) {
   // TODO: should be buffer all along!
-  var data = new Buffer(packet.rawData).toString('ascii');
+  var data = new Buffer(packet.rawData,'binary');
   if (this.xbee.use_heartbeat) {
     this.refreshTimeout();
     if (data === this.xbee.heartbeat_packet) return;
