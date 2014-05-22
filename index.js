@@ -291,70 +291,70 @@ XBee.prototype.readParameters = function (_done_cb) {
 }
 
 // Add a node by hand.
-XBee.prototype.addNode = function (remote64, remote16, parser) {
-    var self = this;
-    //var remote16 = [0xff,0xfe]; // Unknown
-    if (!remote16 instanceof Array) {
-        parser = remote16;
-    }
-    var node_data = {
-        remote16: { dec: remote16, hex: Tools.bArr2HexStr(remote16) },
-        remote64: { dec: remote64, hex: Tools.bArr2HexStr(remote64) }
-    };
+XBee.prototype.addNode = function(remote64, remote16, parser) {
+  var self = this;
+  if (!remote16 instanceof Array) {
+    parser = remote16;
+  } else if (!remote16) {
+    remote16 = [0xff,0xfe]; // Unknown
+  }
+  
+  var node_data = {
+    remote16: { dec: remote16, hex: Tools.bArr2HexStr(remote16) },
+    remote64: { dec: remote64, hex: Tools.bArr2HexStr(remote64) }
+  };
+  
+  var node = self.nodes[node_data.remote64.hex];
 
-    var node = self.nodes[node_data.remote64.hex];
+  if (!node) {
+    node = self.nodes[node_data.remote64.hex] = self._createNode(node_data);
+    node.connected = false;
+  }
 
-    if (!node) {
-        node = self.nodes[node_data.remote64.hex] = self._createNode(node_data);
-        node.connected = false;
-    }
+  if (typeof parser === "function")
+    node.parser = parser(node);
 
-    if (typeof parser === "function")
-        node.parser = parser(node);
-
-    return node;
+  return node;
 }
 
 // Run network discovery. Associated nodes can report in
 // for config.nodeDiscoveryTime ms.
-XBee.prototype.discover = function (cb) {
-    var self = this;
-    var cbid = self._AT('ND');
-    self.serial.on(cbid, function (packet) {
-        var node = parseNodeIdentificationPayload(packet.commandData);
-        self._handleNodeIdentification(node);
-    })
-    setTimeout(function () {
-        if (typeof cb === 'function') cb();
-        self.removeAllListeners(cbid);
-        self.emit("discoveryEnd");
-    }, self.parameters.nodeDiscoveryTime || 6000);
+XBee.prototype.discover = function(cb) {
+  var self = this;
+  var cbid = self._AT('ND');
+  self.serial.on(cbid, function(packet) {
+    var node = parseNodeIdentificationPayload(packet.commandData);
+    self._handleNodeIdentification(node);
+  })
+  setTimeout(function() {
+    if (typeof cb === 'function') cb(); 
+    self.removeAllListeners(cbid);
+    self.emit("discoveryEnd");
+  }, self.parameters.nodeDiscoveryTime || 6000);
 }
 
-XBee.prototype.broadcast = function (data, cb) {
-    var remote64 = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff];
-    var remote16 = [0xff, 0xfe];
-
-    // fix by WFB
-    var addr64 = { dec: remote64, hex: Tools.bArr2HexStr(remote64) }
-    var addr16 = { dec: remote16, hex: Tools.bArr2HexStr(remote16) }
-    this.send(data, addr64, addr16, cb);
+XBee.prototype.broadcast = function(data, cb) {
+  var remote64 = {};
+  var remote16 = {};
+  remote64.dec = [0x00,0x00,0x00,0x00,0x00,0x00,0xff,0xff];
+  remote16.dec = [0xff,0xfe]; 
+  this.send(data, remote64, remote16, cb);
 }
 
-XBee.prototype.send = function (data, remote64, remote16, _cb) {
-    var packets = [];
-    while (data.length > 0) {
-        var frame = new api.TransmitRFData();
-        frame.destination64 = remote64.dec;
-        frame.destination16 = remote16.dec;
-        var length = (C.MAX_PAYLOAD_SIZE < data.length) ? C.MAX_PAYLOAD_SIZE : data.length;
-        frame.RFData = data.slice(0, length);
-        data = data.slice(length);
-        packets.push(this._makeTask({
-            data: frame.getBytes(),
-            cbid: C.FRAME_TYPE.ZIGBEE_TRANSMIT_STATUS + C.EVT_SEP + frame.frameId
-        }));
-    }
+XBee.prototype.send = function(data, remote64, remote16, _cb) {
+  var packets = [];
+  while (data.length > 0) {
+    var frame = new api.TransmitRFData();
+    frame.destination64 = remote64.dec;
+    frame.destination16 = remote16.dec;
+    var length = (C.MAX_PAYLOAD_SIZE < data.length) ? C.MAX_PAYLOAD_SIZE : data.length;
+    frame.RFData = data.slice(0,  length);
+    data = data.slice(length);
+    packets.push(this._makeTask({
+      data: frame.getBytes(),
+      cbid: C.FRAME_TYPE.ZIGBEE_TRANSMIT_STATUS + C.EVT_SEP + frame.frameId
+    }));
+  }
 
     this._queue.push({ packets: packets, cb: _cb });
 }
@@ -537,12 +537,12 @@ Node.prototype._onReceivePacket = function (packet) {
     else this.emit('data', data, packet);
 }
 
-Node.prototype._onDataSampleRx = function (packet) {
-    var sample = parseIOSample(packet.ioSample);
-    this.emit('io', sample);
-    if (this.xbee.use_heartbeat) {
-        this.refreshTimeout();
-    }
+Node.prototype._onDataSampleRx = function(packet) {
+  var sample = parseIOSample(packet.ioSample);
+  this.emit('io', sample, packet);  
+  if (this.xbee.use_heartbeat) {
+    this.refreshTimeout();
+  }
 }
 
 Node.prototype.timeoutOccured = function () {
