@@ -127,8 +127,9 @@ XBee.prototype._remoteAT = function (cmd, remote64, remote16, val, _cb) {
 
 XBee.prototype._handleNodeIdentification = function (node) {
     if (!this.nodes[node.remote64.hex]) {
-        this.nodes[node.remote64.hex] = this._createNode(node);
-        this.emit("newNodeDiscovered", this.nodes[node.remote64.hex]);
+        var node = self.addNode(node.remote64.dec, node.remote16.dec, this.data_parser);
+        //this.nodes[node.remote64.hex] = this._createNode(node);
+        this.emit("newNodeDiscovered", node);
     } else {
         // update 16-bit address, as it may change during reconnects.
         this.nodes[node.remote64.hex].remote16 = node.remote16;
