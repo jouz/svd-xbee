@@ -299,13 +299,15 @@ XBee.prototype.addNode = function(remote64, remote16, parser) {
 XBee.prototype.discover = function(cb) {
   var self = this;
   var cbid = self._AT('ND');
-  self.serial.on(cbid, function(packet) {
+  var nodeIdentificationHandler = function(packet) {
     var node = parseNodeIdentificationPayload(packet.commandData);
     self._handleNodeIdentification(node);
-  })
+  }
+  self.serial.on(cbid, nodeIdentificationHandler);
   setTimeout(function() {
     if (typeof cb === 'function') cb(); 
     self.removeAllListeners(cbid);
+    self.serial.removeListener(cbid, nodeIdentificationHandler);
     self.emit("discoveryEnd");
   }, self.parameters.nodeDiscoveryTime || 6000);
 }
