@@ -93,14 +93,14 @@ XBee.prototype._AT = function(cmd, val, _cb) {
 }
 
 // TODO: Merge this up with _AT to save some space
-XBee.prototype._remoteAT = function(cmd, remote64, remote16, val, _cb) {
+XBee.prototype._remoteAT = function(cmd, remote64, remote16, val, _cb, queue) {
   // val parameter is optional
   if (typeof val === 'function') {
     _cb = val;
     val = undefined;
   }
 
-  var frame = new api.RemoteATCommand();
+  var frame = new api.RemoteATCommand(queue);
   frame.setCommand(cmd);
   frame.commandParameter = val;
   frame.destination64 = remote64.dec;
@@ -535,13 +535,13 @@ Node.prototype.send = function(data, cb) {
   this.xbee.send(data, this.remote64, this.remote16, cb);
 }
 
-Node.prototype.AT = function(cmd, val, cb) {
+Node.prototype.AT = function(cmd, val, cb, queue) {
   // val parameter is optional
   if (typeof val === "function") {
     // use val as the callback in this case
-    this.xbee._remoteAT(cmd, this.remote64, this.remote16, val);
+    this.xbee._remoteAT(cmd, this.remote64, this.remote16, val, queue);
   } else {
-    this.xbee._remoteAT(cmd, this.remote64, this.remote16, val, cb);
+    this.xbee._remoteAT(cmd, this.remote64, this.remote16, val, cb, queue);
   }
 }
 
